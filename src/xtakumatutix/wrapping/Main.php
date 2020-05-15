@@ -27,7 +27,6 @@ Class Main extends PluginBase implements Listener {
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
         if ($sender instanceof Player) {
             if ($sender->getInventory()->all(Item::get(Item::PAPER))) {
-                
                 $handitem = $sender->getInventory()->getItemInHand();
                 $id = $handitem->getID();
                 $damage = $handitem->getDamage();
@@ -81,7 +80,7 @@ Class Main extends PluginBase implements Listener {
                 $wrappingitem = self::itemDeserialize($tag->getString('wrapping1'));
                 $name = $tag->getString('wrapping2');
 
-                $player->getInventory()->removeItem($item);
+                $player->getInventory()->removeItem((clone $item)->setCount(1));
                 $player->getInventory()->addItem($wrappingitem);
                 $player->sendMessage("§a >> {$name}様からのプレゼントです！");
 
