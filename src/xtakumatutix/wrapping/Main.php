@@ -13,6 +13,8 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\event\Listener;
 use pocketmine\event\Player\PlayerInteractEvent;
 use pocketmine\network\mcpe\protocol\PlaySoundPacket;
+use pocketmine\utils\BinaryStream;
+use pocketmine\utils\Binary;
 
 Class Main extends PluginBase implements Listener {
 
@@ -25,10 +27,22 @@ Class Main extends PluginBase implements Listener {
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool {
         if ($sender instanceof Player) {
             if ($sender->getInventory()->all(Item::get(Item::PAPER))) {
+                
                 $handitem = $sender->getInventory()->getItemInHand();
                 $id = $handitem->getID();
                 $damage = $handitem->getDamage();
                 $count = $handitem->getCount();
+                $tag = $handitem->getNamedTag();
+
+                if ($id === 0) {
+                    $sender->sendMessage("§c >> 空気のラッピングを行うことは出来ません。");
+                    return true;
+                }
+
+                if ($tag->offsetExists("wrapping")) {
+                    $sender->sendMessage("§c >> 2重ラッピングを行うことは出来ません。");
+                    return true;
+                }
 
                 $sender->getInventory()->removeItem(Item::get($id, $damage, $count));
                 $sender->getInventory()->removeItem(Item::get(339, 0, 1));
@@ -39,10 +53,8 @@ Class Main extends PluginBase implements Listener {
                 $item->setCustomName("{$name}様より");
                 $tag = $item->getNamedTag() ?? new CompoundTag('', []);
                 $tag->setTag(new IntTag("wrapping", 1), true);
-                $tag->setTag(new IntTag("wrapping1", $id), true);
-                $tag->setTag(new IntTag("wrapping2", $damage), true);
-                $tag->setTag(new IntTag("wrapping3", $count), true);
-                $tag->setTag(new StringTag("wrapping4", "{$name}"), true);
+                $tag->setTag(new StringTag("wrapping1", self::itemSerialize($handitem)), true);
+                $tag->setTag(new StringTag("wrapping2", $name), true);
                 $item->setNamedTag($tag);
                 $sender->getInventory()->addItem($item);
                 $sender->sendMessage("§a >> ラッピングしました！！");
@@ -63,17 +75,14 @@ Class Main extends PluginBase implements Listener {
         $player = $event->getPlayer();
         $item = $player->getInventory()->getItemInHand();
         $itemid = $item->getID();
-        $itemdamage = $item->getDamage();
         if ($itemid===378) {
             $tag = $item->getNamedTag();
             if ($tag->offsetExists("wrapping")) {
-                $id = $tag->getInt('wrapping1');
-                $damage = $tag->getInt('wrapping2');
-                $count = $tag->getInt('wrapping3');
-                $name = $tag->getString('wrapping4');
+                $wrappingitem = self::itemDeserialize($tag->getString('wrapping1'));
+                $name = $tag->getString('wrapping2');
 
-                $player->getInventory()->removeItem(Item::get($itemid,$itemdamage,1,$tag));
-                $player->getInventory()->addItem(Item::get($id, $damage, $count));
+                $player->getInventory()->removeItem($item);
+                $player->getInventory()->addItem($wrappingitem);
                 $player->sendMessage("§a >> {$name}様からのプレゼントです！");
 
                 $pk = new PlaySoundPacket();
@@ -86,5 +95,18 @@ Class Main extends PluginBase implements Listener {
                 $player->dataPacket($pk);
             }
         }
+    }
+
+    public static function itemSerialize(Item $item): string
+    {
+        $nbt = base64_encode($item->getCompoundTag());
+        var_dump(strlen($nbt));
+        return Binary::writeShort($item->getId()).Binary::writeByte($item->getDamage()).Binary::writeInt($item->getCount()).Binary::writeShort(strlen($nbt)).$nbt;//9‬b+?b
+    }
+
+    public static function itemDeserialize(String $str): Item
+    {
+        $binaryStream = new BinaryStream($str);
+        return Item::get($binaryStream->getShort(),$binaryStream->getByte(),$binaryStream->getInt(),base64_decode($binaryStream->get($binaryStream->getShort())));
     }
 }
