@@ -99,7 +99,6 @@ Class Main extends PluginBase implements Listener {
     public static function itemSerialize(Item $item): string
     {
         $nbt = base64_encode($item->getCompoundTag());
-        var_dump(strlen($nbt));
         return Binary::writeShort($item->getId()).Binary::writeByte($item->getDamage()).Binary::writeInt($item->getCount()).Binary::writeShort(strlen($nbt)).$nbt;//9‬b+?b
     }
 
